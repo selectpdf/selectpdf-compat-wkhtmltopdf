@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);WKHTMLTOPDFDOTNET</DefineConstants>
+    <RootNamespace>WkHtmlToPdfDotNet</RootNamespace>
+    <AssemblyName>SelectPdf.Compat.WkHtmlToPdfDotNet</AssemblyName>
+    <PackageId>SelectPdf.Compat.WkHtmlToPdfDotNet</PackageId>
+    <Title>Free drop-in replacement for Haukcode.WkHtmlToPdfDotNet (Chromium, Linux/Docker/ARM64)</Title>
+    <Description>Free drop-in replacement for Haukcode.WkHtmlToPdfDotNet. Same WkHtmlToPdfDotNet API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings, CoverSettings), rendered by Chromium through the free SelectPdf Community Edition instead of wkhtmltopdf. Windows, Linux x64/ARM64, macOS Apple Silicon, Docker; no wkhtmltox libraries or apt-get. Up to 5 pages per document. Not affiliated with WkHtmlToPdf-DotNet.</Description>
+    <PackageTags>wkhtmltopdfdotnet;haukcode;wkhtmltopdf;wkhtmltopdf-alternative;dinktopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;free;selectpdf</PackageTags>
+  </PropertyGroup>
+</Project>

@@ -7,7 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <!-- The Chromium engine for the machine running the tests (render tests only; mapping tests don't need it). -->
+  <!-- the Chromium engine for the machine running the tests -->
   <PropertyGroup>
     <_Arch>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())</_Arch>
     <SelectPdfRid Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-$(_Arch)</SelectPdfRid>
@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../Shared/*.cs" />
     <ProjectReference Include="../../src/SelectPdf.Compat.DinkToPdf/SelectPdf.Compat.DinkToPdf.csproj" />
   </ItemGroup>
 

@@ -1,18 +1,23 @@
 using System;
 using System.Linq;
-using DinkToPdf.Contracts;
-using DinkToPdf.EventDefinitions;
-using DinkToPdf.Internal;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet
+#else
 namespace DinkToPdf
+#endif
 {
     /// <summary>
-    /// Same public surface as DinkToPdf's BasicConverter. Rendering is done by SelectPdf.Universal;
+    /// Same public surface as the wrapper's BasicConverter. Rendering is done by SelectPdf.Universal;
     /// the <see cref="ITools"/> instance is accepted for compatibility and only <c>Load()</c> is called.
     /// </summary>
     public class BasicConverter : IConverter
     {
+#if WKHTMLTOPDFDOTNET
+        public ITools Tools { get; }
+#else
         public readonly ITools Tools;
+#endif
 
         public IDocument ProcessingDocument { get; private set; }
 
@@ -58,9 +63,16 @@ namespace DinkToPdf
             {
                 Error?.Invoke(this, new ErrorArgs { Document = document, Message = e.Message });
                 Finished?.Invoke(this, new FinishedArgs { Document = document, Success = false });
-                if (DinkToPdfCompat.ThrowOnError) throw;
-                return new byte[0]; // DinkToPdf behaviour on a failed conversion
+                if (SelectPdfCompat.ThrowOnError) throw;
+                return new byte[0]; // the wrappers' behaviour on a failed conversion
             }
         }
+#if WKHTMLTOPDFDOTNET
+
+        /// <summary>Nothing native to release; kept because IConverter is IDisposable in WkHtmlToPdfDotNet.</summary>
+        public virtual void Dispose()
+        {
+        }
+#endif
     }
 }

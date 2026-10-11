@@ -2,7 +2,11 @@ using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet.Internal
+#else
 namespace DinkToPdf.Internal
+#endif
 {
     /// <summary>
     /// Translates wkhtmltopdf header/footer variables to SelectPdf text-section variables.

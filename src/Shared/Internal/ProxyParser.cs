@@ -1,7 +1,11 @@
 using System;
 using System.Globalization;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet.Internal
+#else
 namespace DinkToPdf.Internal
+#endif
 {
     /// <summary>Parses wkhtmltopdf's proxy string: [http|socks5://][user[:password]@]host[:port].</summary>
     internal sealed class ProxySpec

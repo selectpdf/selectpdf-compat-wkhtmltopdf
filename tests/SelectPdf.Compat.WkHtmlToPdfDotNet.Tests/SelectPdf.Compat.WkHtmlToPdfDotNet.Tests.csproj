@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <DefineConstants>$(DefineConstants);WKHTMLTOPDFDOTNET</DefineConstants>
+  </PropertyGroup>
+
+  <!-- the Chromium engine for the machine running the tests -->
+  <PropertyGroup>
+    <_Arch>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant())</_Arch>
+    <SelectPdfRid Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-$(_Arch)</SelectPdfRid>
+    <SelectPdfRid Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-$(_Arch)</SelectPdfRid>
+    <SelectPdfRid Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-$(_Arch)</SelectPdfRid>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="SelectPdf.Universal.Native.$(SelectPdfRid)" Version="26.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/*.cs" />
+    <ProjectReference Include="../../src/SelectPdf.Compat.WkHtmlToPdfDotNet/SelectPdf.Compat.WkHtmlToPdfDotNet.csproj" />
+  </ItemGroup>
+
+</Project>

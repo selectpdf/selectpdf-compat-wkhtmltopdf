@@ -4,13 +4,16 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using DinkToPdf.Contracts;
 using SelectPdf.Universal;
 using SelectPdf.Universal.Drawing;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet.Internal
+#else
 namespace DinkToPdf.Internal
+#endif
 {
-    /// <summary>Renders a DinkToPdf document with SelectPdf.Universal.</summary>
+    /// <summary>Renders a wkhtmltopdf-wrapper document with the SelectPdf Community Edition (one conversion per document).</summary>
     internal sealed class SelectPdfRenderer
     {
         readonly Action<string> warn;
@@ -22,30 +25,30 @@ namespace DinkToPdf.Internal
             GlobalSettings global = GetGlobalSettings(document);
             List<ObjectSettings> objects = document.GetObjects().Where(x => x != null).Select(ToObjectSettings).ToList();
 
-            if (objects.Count > 1 && objects.Any(UsesPageVariables))
-                warn("Page numbers restart for each document object; DinkToPdf numbered across all objects.");
+            DocumentLayout layout = DocumentLayout.Create(objects);
+            foreach (string w in layout.Warnings) warn(w);
 
-            var opened = new List<PdfDocument>();
+            ConversionPlan plan = ConversionPlan.Create(global, layout.Primary);
+            if (layout.CombinedHtml != null) { plan.Url = null; plan.Html = layout.CombinedHtml; }
+            foreach (string w in plan.Warnings) warn(w);
+
+            phase(0, 2, "Converting");
+            HtmlToPdf converter = CreateConverter(plan, layout);
+            SelectPdfCompat.Configure?.Invoke(converter, layout.Primary);
+
+            PdfDocument doc = plan.Url != null ? converter.ConvertUrl(ToUrl(plan.Url)) : converter.ConvertHtmlString(plan.Html);
             try
             {
-                PdfDocument result = null;
-                for (int i = 0; i < objects.Count; i++)
-                {
-                    phase(i, objects.Count + 1, $"Converting object {i + 1} of {objects.Count}");
-                    PdfDocument doc = RenderObject(global, objects[i]);
-                    opened.Add(doc);
-                    if (result == null) result = doc;
-                    else result.Append(doc);
-                }
+                CheckPageLimit(converter.ConversionResult.PdfPageCount);
 
-                phase(objects.Count, objects.Count + 1, "Saving");
+                phase(1, 2, "Saving");
                 if (!string.IsNullOrEmpty(global.DocumentTitle))
-                    result.DocumentInformation.Title = global.DocumentTitle;
-                byte[] bytes = result.Save();
+                    doc.DocumentInformation.Title = global.DocumentTitle;
+                byte[] bytes = doc.Save();
 
                 if (!string.IsNullOrEmpty(global.Out))
                 {
-                    // DinkToPdf: with Out set, the PDF goes to that file and the returned array is empty.
+                    // as in the wkhtmltopdf wrappers: with Out set, the PDF goes to that file and the array is empty
                     File.WriteAllBytes(global.Out, bytes);
                     return new byte[0];
                 }
@@ -53,18 +56,21 @@ namespace DinkToPdf.Internal
             }
             finally
             {
-                for (int i = opened.Count - 1; i >= 0; i--)
-                {
-                    try { opened[i].Close(); } catch { /* best effort */ }
-                }
+                doc.Close();
             }
         }
 
-        PdfDocument RenderObject(GlobalSettings global, ObjectSettings obj)
+        void CheckPageLimit(int pageCount)
         {
-            ConversionPlan plan = ConversionPlan.Create(global, obj);
-            foreach (string w in plan.Warnings) warn(w);
+            if (pageCount < SelectPdfCompat.CommunityPageLimit) return;
+            string message = $"The output reached the SelectPdf Community Edition limit of {SelectPdfCompat.CommunityPageLimit} pages; " +
+                             "content past that page was not rendered. SelectPdf.Universal (licensed) has no page limit: https://selectpdf.com/pdf-library-cross-platform/";
+            if (SelectPdfCompat.FailOnPageLimit) throw new InvalidOperationException(message);
+            warn(message);
+        }
 
+        static HtmlToPdf CreateConverter(ConversionPlan plan, DocumentLayout layout)
+        {
             var converter = new HtmlToPdf();
             HtmlToPdfOptions o = converter.Options;
 
@@ -102,6 +108,7 @@ namespace DinkToPdf.Internal
             if (plan.Password != null) o.Authentication.Password = plan.Password;
             foreach (var kv in plan.HttpHeaders) o.HttpHeaders.Add(kv.Key, kv.Value);
             foreach (var kv in plan.Cookies) o.HttpCookies.Add(kv.Key, kv.Value);
+            foreach (var kv in plan.PostFields) o.HttpPostParameters.Add(kv.Key, kv.Value);
             if (plan.Proxy != null)
             {
                 o.ProxyOptions.Type = plan.Proxy.IsSocks5 ? NetworkProxyType.Socks5 : NetworkProxyType.Http;
@@ -116,6 +123,7 @@ namespace DinkToPdf.Internal
                 o.DisplayHeader = true;
                 converter.Header.Height = plan.Header.HeightPt;
                 converter.Header.FirstPageNumber = plan.FirstPageNumber;
+                if (layout.CoverFirst) converter.Header.DisplayOnFirstPage = false;
                 foreach (PdfSectionElement e in BuildSection(plan.Header)) converter.Header.Add(e);
             }
             if (plan.Footer != null)
@@ -123,13 +131,10 @@ namespace DinkToPdf.Internal
                 o.DisplayFooter = true;
                 converter.Footer.Height = plan.Footer.HeightPt;
                 converter.Footer.FirstPageNumber = plan.FirstPageNumber;
+                if (layout.CoverFirst) converter.Footer.DisplayOnFirstPage = false;
                 foreach (PdfSectionElement e in BuildSection(plan.Footer)) converter.Footer.Add(e);
             }
-
-            DinkToPdfCompat.Configure?.Invoke(converter, obj);
-
-            if (plan.Url != null) return converter.ConvertUrl(ToUrl(plan.Url));
-            return converter.ConvertHtmlString(plan.Html);
+            return converter;
         }
 
         static IEnumerable<PdfSectionElement> BuildSection(ConversionPlan.SectionPlan s)
@@ -189,13 +194,6 @@ namespace DinkToPdf.Internal
                 return pageOrPath;
             if (File.Exists(pageOrPath)) return new Uri(Path.GetFullPath(pageOrPath)).AbsoluteUri;
             return pageOrPath;
-        }
-
-        static bool UsesPageVariables(ObjectSettings o)
-        {
-            string all = string.Concat(o.HeaderSettings?.Left, o.HeaderSettings?.Center, o.HeaderSettings?.Right,
-                                       o.FooterSettings?.Left, o.FooterSettings?.Center, o.FooterSettings?.Right);
-            return all.IndexOf("page]", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         static GlobalSettings GetGlobalSettings(IDocument document)

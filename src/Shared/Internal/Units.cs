@@ -2,7 +2,11 @@ using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet.Internal
+#else
 namespace DinkToPdf.Internal
+#endif
 {
     /// <summary>Converts wkhtmltopdf lengths ("210mm", "8.5in", "2cm", "96px", "12pt") to PDF points.</summary>
     internal static class Units

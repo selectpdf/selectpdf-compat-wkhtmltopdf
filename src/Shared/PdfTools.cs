@@ -1,11 +1,14 @@
 using System;
 using System.Reflection;
-using DinkToPdf.Contracts;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet
+#else
 namespace DinkToPdf
+#endif
 {
     /// <summary>
-    /// Stand-in for DinkToPdf's PdfTools, which loaded the native libwkhtmltox library.
+    /// Stand-in for the wrapper's PdfTools, which loaded the native libwkhtmltox library.
     /// Nothing native is loaded here: no libwkhtmltox.dll/.so/.dylib needs to be copied next to the app.
     /// The low-level wkhtmltopdf calls are not available and throw <see cref="NotSupportedException"/>;
     /// <see cref="BasicConverter"/> and <see cref="SynchronizedConverter"/> never call them.
@@ -21,13 +24,13 @@ namespace DinkToPdf
         public string GetLibraryVersion()
         {
             var v = typeof(PdfTools).GetTypeInfo().Assembly.GetName().Version;
-            return $"SelectPdf.Compat.DinkToPdf {v} (SelectPdf.Universal Chromium engine)";
+            return $"{typeof(PdfTools).GetTypeInfo().Assembly.GetName().Name} {v} (SelectPdf Chromium engine)";
         }
 
         public void Dispose() { }
 
         static NotSupportedException Native(string name) => new NotSupportedException(
-            $"PdfTools.{name} is a raw wkhtmltopdf call. SelectPdf.Compat.DinkToPdf does not use wkhtmltopdf; " +
+            $"PdfTools.{name} is a raw wkhtmltopdf call. This SelectPdf compatibility package does not use wkhtmltopdf; " +
             "convert through BasicConverter or SynchronizedConverter.");
 
         public IntPtr CreateGlobalSettings() => throw Native(nameof(CreateGlobalSettings));

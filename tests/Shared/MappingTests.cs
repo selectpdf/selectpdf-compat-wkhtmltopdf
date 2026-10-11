@@ -1,10 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Xunit;
+#if WKHTMLTOPDFDOTNET
+using WkHtmlToPdfDotNet;
+using WkHtmlToPdfDotNet.Contracts;
+using WkHtmlToPdfDotNet.Internal;
+#else
 using DinkToPdf;
 using DinkToPdf.Contracts;
 using DinkToPdf.Internal;
-using Xunit;
+#endif
 
 // Engine-free tests: how DinkToPdf settings translate to SelectPdf values.
 public class MappingTests
@@ -118,11 +124,18 @@ public class MappingTests
     public void Html_header_fills_the_margin_and_warns_about_page_variables()
     {
         var g = new GlobalSettings { Margins = new MarginSettings { Top = 25 } };
-        var p = ConversionPlan.Create(g, Obj(o => o.HeaderSettings = new HeaderSettings { HtmUrl = "https://example.com/h.html" }));
+        var p = ConversionPlan.Create(g, Obj(o => o.HeaderSettings = new HeaderSettings
+        {
+#if WKHTMLTOPDFDOTNET
+            HtmlUrl = "https://example.com/h.html"
+#else
+            HtmUrl = "https://example.com/h.html"
+#endif
+        }));
         Assert.Equal("https://example.com/h.html", p.Header.HtmlUrl);
         Assert.Equal(25 * MmPt, p.Header.HeightPt, 2);
         Assert.Equal(0, p.MarginTop);
-        Assert.Contains(p.Warnings, w => w.Contains("HtmUrl"));
+        Assert.Contains(p.Warnings, w => w.Contains("HTML URL"));
     }
 
     [Fact]

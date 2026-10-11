@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+#if WKHTMLTOPDFDOTNET
+namespace WkHtmlToPdfDotNet.Internal
+#else
 namespace DinkToPdf.Internal
+#endif
 {
     /// <summary>
     /// Engine-independent translation of DinkToPdf settings into SelectPdf terms (points, flags, sections).
@@ -34,6 +38,7 @@ namespace DinkToPdf.Internal
         public ProxySpec Proxy;
         public Dictionary<string, string> HttpHeaders = new Dictionary<string, string>();
         public Dictionary<string, string> Cookies = new Dictionary<string, string>();
+        public Dictionary<string, string> PostFields = new Dictionary<string, string>();
 
         public readonly List<string> Warnings = new List<string>();
 
@@ -152,6 +157,10 @@ namespace DinkToPdf.Internal
                 foreach (var kv in load.CustomHeaders) if (kv.Key != null && kv.Value != null) p.HttpHeaders[kv.Key] = kv.Value;
             if (load.Cookies != null)
                 foreach (var kv in load.Cookies) if (kv.Key != null && kv.Value != null) p.Cookies[kv.Key] = kv.Value;
+#if WKHTMLTOPDFDOTNET
+            if (load.Post != null)
+                foreach (var kv in load.Post) if (kv.Key != null && kv.Value != null) p.PostFields[kv.Key] = kv.Value;
+#endif
             Unsupported(p, load.ZoomFactor.HasValue && load.ZoomFactor != 1, "LoadSettings.ZoomFactor");
 
             return p;
@@ -162,9 +171,9 @@ namespace DinkToPdf.Internal
         {
             string left, center, right, url, fontName; int? fontSize; bool? line; double? spacing;
             if (settings is HeaderSettings hs)
-            { left = hs.Left; center = hs.Center; right = hs.Right; url = hs.HtmUrl; fontName = hs.FontName; fontSize = hs.FontSize; line = hs.Line; spacing = hs.Spacing; }
+            { left = hs.Left; center = hs.Center; right = hs.Right; url = DocumentLayout.HeaderHtmlUrl(hs); fontName = hs.FontName; fontSize = hs.FontSize; line = hs.Line; spacing = hs.Spacing; }
             else if (settings is FooterSettings fs)
-            { left = fs.Left; center = fs.Center; right = fs.Right; url = fs.HtmUrl; fontName = fs.FontName; fontSize = fs.FontSize; line = fs.Line; spacing = fs.Spacing; }
+            { left = fs.Left; center = fs.Center; right = fs.Right; url = DocumentLayout.FooterHtmlUrl(fs); fontName = fs.FontName; fontSize = fs.FontSize; line = fs.Line; spacing = fs.Spacing; }
             else return null;
 
             string name = isHeader ? "HeaderSettings" : "FooterSettings";
@@ -176,7 +185,7 @@ namespace DinkToPdf.Internal
                 // An HTML header/footer fills the whole margin in wkhtmltopdf.
                 s.HtmlUrl = url;
                 s.HeightPt = (float)marginPt;
-                warnings.Add($"{name}.HtmUrl: wkhtmltopdf's ?page=&topage= query parameters are not passed; page numbers in the HTML will not update per page.");
+                warnings.Add($"{name} HTML URL: wkhtmltopdf's ?page=&topage= query parameters are not passed; page numbers in the HTML will not update per page.");
                 return s;
             }
 

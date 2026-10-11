@@ -1,40 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
-    <!-- The public API mirrors DinkToPdf, so its namespaces are kept: DinkToPdf, DinkToPdf.Contracts, DinkToPdf.EventDefinitions -->
     <RootNamespace>DinkToPdf</RootNamespace>
     <AssemblyName>SelectPdf.Compat.DinkToPdf</AssemblyName>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
-
     <PackageId>SelectPdf.Compat.DinkToPdf</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>SelectPdf</Authors>
-    <Company>Outside Software SRL</Company>
-    <Product>SelectPdf</Product>
-    <Title>SelectPdf drop-in replacement for DinkToPdf</Title>
-    <Description>Drop-in replacement for DinkToPdf: the same API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings), rendered by SelectPdf.Universal's Chromium engine instead of wkhtmltopdf. Runs on Windows, Linux x64/ARM64, macOS (Apple Silicon) and Docker with no native libwkhtmltox copying. Swap the package reference, keep your code. Not affiliated with the DinkToPdf project.</Description>
-    <PackageTags>dinktopdf;dinktopdf-alternative;wkhtmltopdf;wkhtmltopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;net-core;aspnetcore;selectpdf</PackageTags>
-    <PackageProjectUrl>https://selectpdf.com/pdf-library-cross-platform/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/selectpdf/selectpdf-compat-dinktopdf</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Title>Free drop-in replacement for DinkToPdf (Chromium, Linux/Docker/ARM64)</Title>
+    <Description>Free drop-in replacement for DinkToPdf. Same API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings), rendered by Chromium through the free SelectPdf Community Edition instead of wkhtmltopdf. Windows, Linux x64/ARM64, macOS Apple Silicon, Docker; no libwkhtmltox files. Up to 5 pages per document. Not affiliated with DinkToPdf.</Description>
+    <PackageTags>dinktopdf;dinktopdf-alternative;wkhtmltopdf;wkhtmltopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;free;selectpdf</PackageTags>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SelectPdf.Universal" Version="26.4.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/" />
-    <None Include="../../THIRD-PARTY-DinkToPdf-LICENSE.txt" Pack="true" PackagePath="/" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="SelectPdf.Compat.DinkToPdf.Tests" />
-  </ItemGroup>
-
 </Project>
