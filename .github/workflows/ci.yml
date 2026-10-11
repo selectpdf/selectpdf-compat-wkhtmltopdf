@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test (mapping + render through Chromium)
+        run: dotnet test tests/SelectPdf.Compat.DinkToPdf.Tests -c Release --logger "console;verbosity=normal"
+
+  pack:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet pack src/SelectPdf.Compat.DinkToPdf -c Release -o out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: out/*.nupkg
