@@ -4,3 +4,4 @@ out/
 *.user
 .vs/
 TestResults/
+Directory.Build.local.props

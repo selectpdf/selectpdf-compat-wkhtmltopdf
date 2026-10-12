@@ -1,0 +1,11 @@
+<Project>
+  <!-- shared by the packages and the tests -->
+  <PropertyGroup>
+    <!-- the SelectPdf release the packages build against; the tests take the engine of the same release -->
+    <SelectPdfVersion>26.5.0</SelectPdfVersion>
+    <SelectPdfNativeVersion>$(SelectPdfVersion)</SelectPdfNativeVersion>
+  </PropertyGroup>
+  <!-- optional, not in source control: builds against a local SelectPdf.Universal checkout
+       (SelectPdfUniversalSource) or another engine version (SelectPdfNativeVersion) -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.local.props" Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.local.props')" />
+</Project>

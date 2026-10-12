@@ -1,22 +1,38 @@
 # SelectPdf.Compat.WkHtmlToPdfDotNet
 
-A free drop-in replacement for [Haukcode.WkHtmlToPdfDotNet](https://github.com/HakanL/WkHtmlToPdf-DotNet). It has the same API (`IConverter`, `SynchronizedConverter`, `HtmlToPdfDocument`, `GlobalSettings`, `ObjectSettings`, `CoverSettings`), but Chromium does the rendering, through the free [SelectPdf Community Edition](https://www.nuget.org/packages/SelectPdf.HtmlToPdf.Universal), instead of wkhtmltopdf.
+A free replacement for [Haukcode.WkHtmlToPdfDotNet](https://github.com/HakanL/WkHtmlToPdf-DotNet) that keeps its API (`IConverter`, `SynchronizedConverter`, `HtmlToPdfDocument`, `GlobalSettings`, `ObjectSettings`, `CoverSettings`). Chromium does the rendering, through the free [SelectPdf Community Edition](https://www.nuget.org/packages/SelectPdf.HtmlToPdf.Universal), instead of wkhtmltopdf.
 
-- **No code changes.** The namespaces and types are Haukcode.WkHtmlToPdfDotNet's.
+- **Keeps the Haukcode.WkHtmlToPdfDotNet API.** The namespace and types are Haukcode.WkHtmlToPdfDotNet's, so existing code builds against this package.
 - **No native wkhtmltopdf files** and no `apt-get install` of wkhtmltopdf's Linux dependencies.
 - **Runs on** Windows x64/x86, Linux x64/ARM64, macOS on Apple Silicon, and Docker.
 - **Renders modern HTML and CSS** (flexbox, grid, web fonts, current JavaScript) through Chromium instead of the archived Qt WebKit.
+- **Keeps the size of your content.** CSS sizes are scaled the way wkhtmltopdf's smart shrinking scaled them, and content wider than the page is shrunk to fit.
 - **Free for commercial use**, up to **5 pages per document**. See [Limits](#limits).
 
 This package is not affiliated with Haukcode.WkHtmlToPdfDotNet.
+
+&nbsp;
 
 ## Migrate
 
 ```bash
 dotnet remove package Haukcode.WkHtmlToPdfDotNet
 dotnet add package SelectPdf.Compat.WkHtmlToPdfDotNet
-# the engine for each platform you run on (they install side by side):
-dotnet add package SelectPdf.Universal.Native.linux-x64     # or linux-arm64, win-x64, win-x86, osx-arm64
+```
+
+Then add the SelectPdf engine package for the platform the application runs on: `SelectPdf.Universal.Native.<rid>`, where `<rid>` is `win-x64`, `win-x86`, `linux-x64`, `linux-arm64` or `osx-arm64`. Reference one engine package per build, because they all install into the same folder. A project developed on Windows and deployed to a Linux container can pick the package by platform:
+
+```xml
+<PropertyGroup>
+  <SelectPdfRid>$(RuntimeIdentifier)</SelectPdfRid>
+  <SelectPdfRid Condition="'$(SelectPdfRid)' == '' And
+      $([MSBuild]::IsOSPlatform('Windows'))">win-x64</SelectPdfRid>
+  <SelectPdfRid Condition="'$(SelectPdfRid)' == ''">linux-x64</SelectPdfRid>
+</PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="SelectPdf.Universal.Native.$(SelectPdfRid)"
+                    Version="26.5.0" />
+</ItemGroup>
 ```
 
 Remove the `apt-get` lines your Dockerfile needed for wkhtmltopdf (libgdiplus, fontconfig and the other libraries in its sample Dockerfile). Your code stays as it is:
@@ -25,14 +41,29 @@ Remove the `apt-get` lines your Dockerfile needed for wkhtmltopdf (libgdiplus, f
 using WkHtmlToPdfDotNet;
 using WkHtmlToPdfDotNet.Contracts;
 
-services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+services.AddSingleton(typeof(IConverter),
+    new SynchronizedConverter(new PdfTools()));
 
 byte[] pdf = converter.Convert(new HtmlToPdfDocument
 {
-    GlobalSettings = { PaperSize = PaperKind.A4, Orientation = Orientation.Portrait, Margins = new MarginSettings { Top = 10 } },
-    Objects = { new ObjectSettings { HtmlContent = html, FooterSettings = { Center = "Page [page] of [toPage]" } } }
+    GlobalSettings =
+    {
+        PaperSize = PaperKind.A4,
+        Orientation = Orientation.Portrait,
+        Margins = new MarginSettings { Top = 10 }
+    },
+    Objects =
+    {
+        new ObjectSettings
+        {
+            HtmlContent = html,
+            FooterSettings = { Center = "Page [page] of [toPage]" }
+        }
+    }
 });
 ```
+
+&nbsp;
 
 ### Docker
 
@@ -48,19 +79,23 @@ COPY --from=build /app .
 ENTRYPOINT ["dotnet", "YourApp.dll"]
 ```
 
-The native package ships the engine, so the image needs no `apt-get` lines. On Linux, glibc 2.30 or later is required, which the official .NET images have.
+The engine package bundles the Chromium libraries, so the image needs no `apt-get` lines. On Linux, glibc 2.30 or later is required, which the official .NET images have. Linux images often have no fonts installed; the engine has built-in fonts for Latin scripts, and [SelectPdf.Universal.Fonts](https://www.nuget.org/packages/SelectPdf.Universal.Fonts) adds every other script.
+
+&nbsp;
 
 ## Limits
 
-The Community Edition renders **up to 5 pages per document**. Pages past the fifth are not rendered. When output reaches 5 pages, the converter raises its `Warning` event saying so. To make that an error instead:
+The Community Edition renders **up to 5 pages per document**. A longer document makes `Convert` throw an `InvalidOperationException` that says how many pages the document had, so a cut PDF never reaches your users unnoticed. To accept the first 5 pages instead, with a `Warning` event:
 
 ```csharp
-SelectPdfCompat.FailOnPageLimit = true;   // empty result + Error event (or an exception with ThrowOnError)
+SelectPdfCompat.FailOnPageLimit = false;
 ```
 
-Several objects in one document are joined into one HTML document with page breaks, so page numbering runs continuously across them. They must all use `HtmlContent`. A document with several objects where any of them is a URL (`Page`) can't be built by the free edition, which cannot merge PDFs, so it fails with a clear error.
+Several objects in one document are joined into one HTML document with page breaks, so page numbering runs continuously across them. They must all use `HtmlContent`: a document with several objects where any of them is a URL (`Page`) needs PDF merging, which the free edition doesn't do, so it fails with a clear error.
 
-For longer documents or URL merging, use [SelectPdf.Universal](https://www.nuget.org/packages/SelectPdf.Universal) (licensed, no page limit). See the [migration guide](https://selectpdf.com/pdf-library/html/Migrating-To-SelectPdf-Universal.htm).
+For longer documents or URL merging, use [SelectPdf.Compat.WkHtmlToPdfDotNet.Licensed](https://www.nuget.org/packages/SelectPdf.Compat.WkHtmlToPdfDotNet.Licensed), the same code on the licensed SelectPdf.Universal library.
+
+&nbsp;
 
 ## How settings map
 
@@ -72,34 +107,43 @@ For longer documents or URL merging, use [SelectPdf.Universal](https://www.nuget
 | `[page]`, `[topage]`, `[frompage]`, `[date]`, `[isodate]`, `[time]`, `[title]`, `[doctitle]`, `[webpage]` | `{page_number}`, `{total_pages}`, or the value itself (case-insensitive, so `[toPage]` works) |
 | `HtmlUrl` | HTML header/footer section |
 | `ObjectSettings.Page` (URL or local file) / `HtmlContent` | `ConvertUrl` / `ConvertHtmlString` |
-| Several `Objects` (HTML), `CoverSettings` | One PDF, page breaks between objects; the cover goes first with no header or footer |
+| Several `Objects` (HTML) | One PDF, page breaks between objects |
+| `CoverSettings` | The cover goes first, with no header or footer |
 | `TableOfContentsSettings` | Skipped with a `Warning` (no generated TOC page); use `Outline = true` for bookmarks |
 | `ObjectSettings.Encoding` | Honoured by `GetContent()` |
+| `WebSettings.EnableIntelligentShrinking`, `LoadSettings.ZoomFactor` | The scale of the content, as wkhtmltopdf applied it |
 | `ColorMode.Grayscale` | Grayscale color space |
 | `DocumentTitle`, `Outline`/`OutlineDepth`, `ImageQuality`, `PageOffset`, `ViewportSize`, `Out` | Title, h1..hN bookmarks, JPEG level, first page number, browser viewport, file output (returns an empty array, as before) |
 | `WebSettings`: `PrintMediaType`, `EnableJavascript`, `Background`, `UserStyleSheet` | CSS media type, JavaScript, backgrounds, custom CSS |
 | `LoadSettings`: `Username`/`Password`, `JSDelay`, `Proxy`, `CustomHeaders`, `Cookies`, `BlockLocalFileAccess`, `Post` | HTTP auth, conversion delay (rounded up to whole seconds), proxy, headers, cookies, local file access, POST fields |
 | Events: `PhaseChanged`, `ProgressChanged`, `Finished`, `Error`, `Warning` | Raised at the same points |
 
-Settings with no equivalent, such as `Copies`, `DPI`, `MinimumFontSize` and `ZoomFactor`, are ignored. Each one raises the `Warning` event so you can see it.
+Settings with no equivalent, such as `Copies`, `DPI` and `MinimumFontSize`, are ignored. Each one raises the `Warning` event so you can see it.
+
+&nbsp;
 
 ## What behaves differently
 
-- **Engine.** Chromium lays pages out like a current browser. Pages tuned around WebKit quirks may paginate differently. Use CSS `break-before`, `break-after` and `break-inside: avoid` to control page breaks.
-- **Page width.** wkhtmltopdf's "intelligent shrinking" fitted wide pages to the paper. SelectPdf renders at a 1024 px browser width and scales to the page. Set `GlobalSettings.ViewportSize = "1280x1024"` to change the width.
-- **HTML header/footer URLs.** wkhtmltopdf passed `?page=&topage=` to the header page. That isn't done here, so use text headers for page numbers.
+- **Engine.** Chromium lays pages out like a current browser. Layouts that worked around WebKit's missing flexbox and grid support now render as written, and text metrics differ slightly. Use CSS `break-before`, `break-after` and `break-inside: avoid` to control page breaks.
+- **HTML header/footer URLs.** wkhtmltopdf passed `?page=&topage=` to the `HtmlUrl` page. That isn't done here, so use text headers for page numbers.
+- **Wide content without smart shrinking.** With `EnableIntelligentShrinking = false`, content wider than the page is shrunk to fit instead of being cut at the right edge.
 - **Several objects.** The first content object's header, footer and web settings apply to the whole document.
 - **Table of contents.** No TOC page is generated; the PDF gets bookmarks when `Outline` is true.
 - **Concurrency.** `SynchronizedConverter` no longer queues every conversion on one thread. SelectPdf converts in parallel, so a singleton converter serves concurrent requests.
 - **Failures.** A failed conversion returns an empty array and raises `Error`, as before. Set `SelectPdfCompat.ThrowOnError = true` to throw instead.
 
+&nbsp;
+
 ## Other SelectPdf options
 
-`SelectPdfCompat.Configure` receives the `SelectPdf.Universal.HtmlToPdf` converter after your settings are applied, so you can set any Community Edition option:
+`SelectPdfCompat.Configure` receives the `SelectPdf.Universal.HtmlToPdf` converter after your settings are applied, so you can set any other SelectPdf option:
 
 ```csharp
-SelectPdfCompat.Configure = (converter, obj) => converter.Options.ConversionDelay = 2;
+SelectPdfCompat.Configure = (converter, obj) =>
+    converter.Options.ConversionDelay = 2;
 ```
+
+&nbsp;
 
 ## License
 

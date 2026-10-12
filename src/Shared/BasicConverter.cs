@@ -63,7 +63,8 @@ namespace DinkToPdf
             {
                 Error?.Invoke(this, new ErrorArgs { Document = document, Message = e.Message });
                 Finished?.Invoke(this, new FinishedArgs { Document = document, Success = false });
-                if (SelectPdfCompat.ThrowOnError) throw;
+                // a cut document always throws: an empty result would hide why the PDF is missing
+                if (SelectPdfCompat.ThrowOnError || e is Internal.PageLimitException) throw;
                 return new byte[0]; // the wrappers' behaviour on a failed conversion
             }
         }

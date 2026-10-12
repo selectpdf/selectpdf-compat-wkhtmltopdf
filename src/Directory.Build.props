@@ -1,5 +1,8 @@
 <Project>
-  <!-- shared by both compatibility packages -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- shared by the compatibility packages: the free ones build on the Community Edition, the .Licensed
+       ones (SelectPdfLicensed=true and SELECTPDF_LICENSED in their project) on SelectPdf.Universal -->
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
@@ -14,12 +17,22 @@
     <RepositoryUrl>https://github.com/selectpdf/selectpdf-compat-wkhtmltopdf</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(SelectPdfUniversalSource)' == ''">
+    <PackageReference Include="SelectPdf.HtmlToPdf.Universal" Version="$(SelectPdfVersion)" Condition="'$(SelectPdfLicensed)' != 'true'" />
+    <PackageReference Include="SelectPdf.Universal" Version="$(SelectPdfVersion)" Condition="'$(SelectPdfLicensed)' == 'true'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SelectPdfUniversalSource)' != ''">
+    <ProjectReference Include="$(SelectPdfUniversalSource)/src/SelectPdf/SelectPdf.HtmlToPdf.csproj" Condition="'$(SelectPdfLicensed)' != 'true'" />
+    <ProjectReference Include="$(SelectPdfUniversalSource)/src/SelectPdf/SelectPdf.csproj" Condition="'$(SelectPdfLicensed)' == 'true'" />
+  </ItemGroup>
+
   <ItemGroup>
-    <!-- free Community Edition engine: HTML to PDF, up to 5 pages per document -->
-    <PackageReference Include="SelectPdf.HtmlToPdf.Universal" Version="26.4.0" />
     <Compile Include="$(MSBuildThisFileDirectory)Shared/**/*.cs" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)../assets/icon.png" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)../THIRD-PARTY-DinkToPdf-LICENSE.txt" Pack="true" PackagePath="/" />
     <InternalsVisibleTo Include="$(AssemblyName).Tests" />
   </ItemGroup>

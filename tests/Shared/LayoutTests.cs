@@ -37,13 +37,25 @@ public class LayoutTests
         Assert.Empty(l.Warnings);
     }
 
+#if SELECTPDF_LICENSED
+    [Fact]
+    public void Several_objects_with_a_url_are_converted_one_by_one()
+    {
+        var url = new ObjectSettings { Page = "https://example.com" };
+        var l = DocumentLayout.Create(new List<ObjectSettings> { Html("<p>x</p>"), url });
+        Assert.Equal(2, l.Separate.Count);
+        Assert.Same(url, l.Separate[1]);
+        Assert.Contains(l.Warnings, w => w.Contains("appended"));
+    }
+#else
     [Fact]
     public void Several_objects_with_a_url_cannot_be_merged_by_the_free_edition()
     {
         var e = Assert.Throws<NotSupportedException>(() => DocumentLayout.Create(new List<ObjectSettings>
             { Html("<p>x</p>"), new ObjectSettings { Page = "https://example.com" } }));
-        Assert.Contains("SelectPdf.Universal", e.Message);
+        Assert.Contains(".Licensed", e.Message);
     }
+#endif
 
     [Fact]
     public void Different_headers_warn_that_the_first_objects_settings_apply()

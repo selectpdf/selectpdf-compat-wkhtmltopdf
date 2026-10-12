@@ -13,7 +13,10 @@ namespace WkHtmlToPdfDotNet.Internal
 namespace DinkToPdf.Internal
 #endif
 {
-    /// <summary>Renders a wkhtmltopdf-wrapper document with the SelectPdf Community Edition (one conversion per document).</summary>
+    /// <summary>
+    /// Renders a wkhtmltopdf-wrapper document with SelectPdf: the Community Edition in the free packages,
+    /// SelectPdf.Universal in the .Licensed ones.
+    /// </summary>
     internal sealed class SelectPdfRenderer
     {
         readonly Action<string> warn;
@@ -28,18 +31,25 @@ namespace DinkToPdf.Internal
             DocumentLayout layout = DocumentLayout.Create(objects);
             foreach (string w in layout.Warnings) warn(w);
 
-            ConversionPlan plan = ConversionPlan.Create(global, layout.Primary);
-            if (layout.CombinedHtml != null) { plan.Url = null; plan.Html = layout.CombinedHtml; }
-            foreach (string w in plan.Warnings) warn(w);
-
             phase(0, 2, "Converting");
-            HtmlToPdf converter = CreateConverter(plan, layout);
-            SelectPdfCompat.Configure?.Invoke(converter, layout.Primary);
-
-            PdfDocument doc = plan.Url != null ? converter.ConvertUrl(ToUrl(plan.Url)) : converter.ConvertHtmlString(plan.Html);
+            PdfDocument doc = null;
+            var appended = new List<PdfDocument>();
             try
             {
-                CheckPageLimit(converter.ConversionResult.PdfPageCount);
+                if (layout.Separate == null)
+                {
+                    doc = Convert(global, layout.Primary, layout, layout.CombinedHtml);
+                }
+                else
+                {
+                    // several objects with a URL among them (licensed only): one conversion per object, appended
+                    foreach (ObjectSettings o in layout.Separate)
+                    {
+                        PdfDocument part = Convert(global, o, layout, null);
+                        if (doc == null) doc = part;
+                        else { appended.Add(part); doc.Append(part); }
+                    }
+                }
 
                 phase(1, 2, "Saving");
                 if (!string.IsNullOrEmpty(global.DocumentTitle))
@@ -56,16 +66,42 @@ namespace DinkToPdf.Internal
             }
             finally
             {
-                doc.Close();
+                doc?.Close();
+                foreach (PdfDocument part in appended) part.Close(); // kept open until the merged document was saved
             }
         }
 
-        void CheckPageLimit(int pageCount)
+        PdfDocument Convert(GlobalSettings global, ObjectSettings o, DocumentLayout layout, string combinedHtml)
         {
-            if (pageCount < SelectPdfCompat.CommunityPageLimit) return;
-            string message = $"The output reached the SelectPdf Community Edition limit of {SelectPdfCompat.CommunityPageLimit} pages; " +
-                             "content past that page was not rendered. SelectPdf.Universal (licensed) has no page limit: https://selectpdf.com/pdf-library-cross-platform/";
-            if (SelectPdfCompat.FailOnPageLimit) throw new InvalidOperationException(message);
+            ConversionPlan plan = ConversionPlan.Create(global, o);
+            if (combinedHtml != null) { plan.Url = null; plan.Html = combinedHtml; }
+            foreach (string w in plan.Warnings) warn(w);
+
+            HtmlToPdf converter = CreateConverter(plan, layout);
+            SelectPdfCompat.Configure?.Invoke(converter, o);
+
+            PdfDocument doc = plan.Url != null ? converter.ConvertUrl(ToUrl(plan.Url)) : converter.ConvertHtmlString(plan.Html);
+            try
+            {
+                CheckPageLimit(converter.ConversionResult);
+            }
+            catch
+            {
+                doc.Close();
+                throw;
+            }
+            return doc;
+        }
+
+        void CheckPageLimit(HtmlToPdfResult result)
+        {
+            // the Community Edition keeps the first pages; PdfPageCountBeforeLimit says how many the document had
+            if (result.PdfPageCountBeforeLimit <= result.PdfPageCount) return;
+            string message = $"The document has {result.PdfPageCountBeforeLimit} pages, and the free SelectPdf Community Edition " +
+                             $"renders up to {SelectPdfCompat.CommunityPageLimit} pages per document. " +
+                             "Use the .Licensed package (SelectPdf.Universal, no page limit), or set SelectPdfCompat.FailOnPageLimit = false " +
+                             $"to accept the first {result.PdfPageCount} pages: https://selectpdf.com/pdf-library-cross-platform/";
+            if (SelectPdfCompat.FailOnPageLimit) throw new PageLimitException(message);
             warn(message);
         }
 
@@ -90,6 +126,7 @@ namespace DinkToPdf.Internal
             if (plan.InternalLinks.HasValue) o.InternalLinksEnabled = plan.InternalLinks.Value;
             if (plan.DenyLocalFileAccess.HasValue) o.DenyLocalFileAccess = plan.DenyLocalFileAccess.Value;
             if (plan.WebPageWidth.HasValue) o.WebPageWidth = plan.WebPageWidth.Value;
+            o.FitWideContent = plan.FitWideContent;
             if (plan.WebPageHeight.HasValue) o.WebPageHeight = plan.WebPageHeight.Value;
             if (plan.ConversionDelaySeconds.HasValue) o.ConversionDelay = plan.ConversionDelaySeconds.Value;
             if (plan.JpegCompressionLevel.HasValue)
@@ -123,7 +160,7 @@ namespace DinkToPdf.Internal
                 o.DisplayHeader = true;
                 converter.Header.Height = plan.Header.HeightPt;
                 converter.Header.FirstPageNumber = plan.FirstPageNumber;
-                if (layout.CoverFirst) converter.Header.DisplayOnFirstPage = false;
+                if (layout.CoverFirst && layout.Separate == null) converter.Header.DisplayOnFirstPage = false;
                 foreach (PdfSectionElement e in BuildSection(plan.Header)) converter.Header.Add(e);
             }
             if (plan.Footer != null)
@@ -131,7 +168,7 @@ namespace DinkToPdf.Internal
                 o.DisplayFooter = true;
                 converter.Footer.Height = plan.Footer.HeightPt;
                 converter.Footer.FirstPageNumber = plan.FirstPageNumber;
-                if (layout.CoverFirst) converter.Footer.DisplayOnFirstPage = false;
+                if (layout.CoverFirst && layout.Separate == null) converter.Footer.DisplayOnFirstPage = false;
                 foreach (PdfSectionElement e in BuildSection(plan.Footer)) converter.Footer.Add(e);
             }
             return converter;
@@ -146,7 +183,8 @@ namespace DinkToPdf.Internal
             }
             if (s.Line)
             {
-                const string line = "<div style=\"border-top:2px solid #000;margin:0;padding:0\"></div>";
+                // a thin rule across the content width, as wkhtmltopdf draws it; the body margin is removed so it starts at the margin
+                const string line = "<html><body style=\"margin:0;padding:0\"><div style=\"border-top:0.5pt solid #000\"></div></body></html>";
                 yield return new PdfHtmlSection(0, s.LineY, s.WidthPt, line, "");
             }
             if (!s.HasText) yield break;
@@ -212,5 +250,11 @@ namespace DinkToPdf.Internal
             // custom IObject: DinkToPdf sent GetContent() bytes to wkhtmltopdf as the page HTML
             return new ObjectSettings { HtmlContent = Encoding.UTF8.GetString(obj.GetContent() ?? new byte[0]) };
         }
+    }
+
+    /// <summary>The document is longer than the Community Edition renders; see <see cref="SelectPdfCompat.FailOnPageLimit"/>.</summary>
+    internal sealed class PageLimitException : InvalidOperationException
+    {
+        public PageLimitException(string message) : base(message) { }
     }
 }

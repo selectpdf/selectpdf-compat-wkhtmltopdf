@@ -19,6 +19,11 @@ namespace DinkToPdf.Internal
         public const int DefaultHeaderFontSize = 12;
         public const string DefaultHeaderFontName = "Arial";
 
+        // wkhtmltopdf with smart shrinking (its default) draws content at this fraction of its CSS size, measured
+        // the same on Windows and Linux, on A4, Letter and landscape (CSS 100mm prints 79.8mm). It shrinks further
+        // when the content is wider than the page. Without smart shrinking, CSS sizes are kept.
+        public const double SmartShrinkingScale = 0.798;
+
         public double PageWidthPt, PageHeightPt;           // final page size; landscape already applied
         public int MarginTop, MarginBottom, MarginLeft, MarginRight; // points, after header/footer space is taken out
         public SectionPlan Header, Footer;                 // null when not displayed
@@ -29,6 +34,7 @@ namespace DinkToPdf.Internal
         public bool Grayscale;
         public bool? PrintMediaType, JavaScript, Background, ExternalLinks, InternalLinks, DenyLocalFileAccess;
         public int? WebPageWidth, WebPageHeight;
+        public bool FitWideContent;                        // smart shrinking: wide content is scaled down to fit
         public int? ConversionDelaySeconds;
         public int? JpegCompressionLevel;
         public int FirstPageNumber = 1;
@@ -140,7 +146,6 @@ namespace DinkToPdf.Internal
             }
             Unsupported(p, web.LoadImages == false, "WebSettings.LoadImages=false");
             Unsupported(p, web.MinimumFontSize.HasValue, "WebSettings.MinimumFontSize");
-            Unsupported(p, web.EnableIntelligentShrinking == false, "WebSettings.EnableIntelligentShrinking=false");
 
             var load = o.LoadSettings ?? new LoadSettings();
             p.Username = load.Username;
@@ -161,7 +166,15 @@ namespace DinkToPdf.Internal
             if (load.Post != null)
                 foreach (var kv in load.Post) if (kv.Key != null && kv.Value != null) p.PostFields[kv.Key] = kv.Value;
 #endif
-            Unsupported(p, load.ZoomFactor.HasValue && load.ZoomFactor != 1, "LoadSettings.ZoomFactor");
+
+            // ---- scale: SelectPdf fits the web page width to the content width of the PDF page, so a viewport of
+            // content width / scale draws CSS sizes at the scale wkhtmltopdf used
+            bool smartShrinking = web.EnableIntelligentShrinking != false;
+            double zoom = load.ZoomFactor.HasValue && load.ZoomFactor.Value > 0 ? load.ZoomFactor.Value : 1;
+            double scale = (smartShrinking ? SmartShrinkingScale : 1) * zoom;
+            p.FitWideContent = smartShrinking;
+            if (!p.WebPageWidth.HasValue)
+                p.WebPageWidth = (int)Math.Round(contentWidth * 96 / 72 / scale);
 
             return p;
         }
@@ -203,9 +216,9 @@ namespace DinkToPdf.Internal
             float lineHeight = s.Line ? 2f : 0;
             s.HeightPt = textHeight + lineHeight + spacingPt;
             if (isHeader)
-            {   // text, line, spacing, then content
+            {   // text, line, spacing, then content; the 0.5pt line ends where the 2pt reserved for it ends
                 s.TextY = 0;
-                s.LineY = textHeight;
+                s.LineY = textHeight + 1.5f;
             }
             else
             {   // content, spacing, line, text

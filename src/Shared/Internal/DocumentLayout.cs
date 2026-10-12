@@ -10,9 +10,10 @@ namespace DinkToPdf.Internal
 #endif
 {
     /// <summary>
-    /// Turns the document's objects into a single SelectPdf conversion. The Community Edition cannot
-    /// append PDFs, so several HTML objects are joined into one HTML document with page breaks between
-    /// them, which also keeps page numbering continuous, as wkhtmltopdf did.
+    /// Turns the document's objects into SelectPdf conversions. Several HTML objects are joined into one
+    /// HTML document with page breaks between them, which keeps page numbering continuous, as wkhtmltopdf
+    /// did. A URL among several objects can only be converted on its own: the .Licensed packages convert
+    /// each object and append the PDFs; the Community Edition cannot append PDFs.
     /// </summary>
     internal sealed class DocumentLayout
     {
@@ -20,6 +21,7 @@ namespace DinkToPdf.Internal
 
         public ObjectSettings Primary;      // its header/footer/web/load settings drive the conversion
         public string CombinedHtml;         // null when Primary is converted on its own
+        public List<ObjectSettings> Separate; // licensed: converted one by one and appended, in this order
         public bool CoverFirst;             // hide header/footer on the first page
         public readonly List<string> Warnings = new List<string>();
 
@@ -49,10 +51,19 @@ namespace DinkToPdf.Internal
             if (content.Count == 1) return layout;
 
             if (content.Any(o => !string.IsNullOrWhiteSpace(o.Page)))
+            {
+#if SELECTPDF_LICENSED
+                layout.Separate = content;
+                layout.Warnings.Add("Several objects with a URL among them: each object is converted on its own and the PDFs are appended, " +
+                                    "so [page] and [topage] in headers and footers count the pages of each object.");
+                return layout;
+#else
                 throw new NotSupportedException(
                     "This document has several objects and at least one is a URL (ObjectSettings.Page). " +
                     "The free SelectPdf Community Edition renders one source per PDF and cannot merge PDFs. " +
-                    "Use HtmlContent for every object, or use SelectPdf.Universal (licensed), which merges documents.");
+                    "Use HtmlContent for every object, or use the .Licensed package (SelectPdf.Universal), which merges documents.");
+#endif
+            }
 
             if (content.Where(o => !IsCover(o)).Select(HeaderFooterKey).Distinct().Count() > 1)
                 layout.Warnings.Add("Objects have different header/footer settings; the first content object's settings are used for the whole document.");

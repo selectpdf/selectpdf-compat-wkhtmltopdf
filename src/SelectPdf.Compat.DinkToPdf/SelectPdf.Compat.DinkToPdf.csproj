@@ -3,8 +3,8 @@
     <RootNamespace>DinkToPdf</RootNamespace>
     <AssemblyName>SelectPdf.Compat.DinkToPdf</AssemblyName>
     <PackageId>SelectPdf.Compat.DinkToPdf</PackageId>
-    <Title>Free drop-in replacement for DinkToPdf (Chromium, Linux/Docker/ARM64)</Title>
-    <Description>Free drop-in replacement for DinkToPdf. Same API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings), rendered by Chromium through the free SelectPdf Community Edition instead of wkhtmltopdf. Windows, Linux x64/ARM64, macOS Apple Silicon, Docker; no libwkhtmltox files. Up to 5 pages per document. Not affiliated with DinkToPdf.</Description>
+    <Title>Free DinkToPdf replacement with the same API (Chromium, Linux/Docker/ARM64)</Title>
+    <Description>A free replacement for DinkToPdf that keeps its API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings), rendered by Chromium through the free SelectPdf Community Edition instead of wkhtmltopdf. Content is scaled the way wkhtmltopdf scaled it. Windows, Linux x64/ARM64, macOS on Apple Silicon, Docker; no libwkhtmltox files. Up to 5 pages per document; SelectPdf.Compat.DinkToPdf.Licensed has no page limit. Not affiliated with DinkToPdf.</Description>
     <PackageTags>dinktopdf;dinktopdf-alternative;wkhtmltopdf;wkhtmltopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;free;selectpdf</PackageTags>
   </PropertyGroup>
 </Project>

@@ -16,7 +16,8 @@ using DinkToPdf.Internal;
 #endif
 
 // End-to-end tests through the Chromium engine. They run DinkToPdf's own README samples unchanged.
-// Rendering uses the free SelectPdf Community Edition (5 pages per document).
+// Rendering uses the free SelectPdf Community Edition (5 pages per document), or SelectPdf.Universal
+// in the .Licensed test projects.
 [Collection("render")]
 public class RenderTests
 {
@@ -115,38 +116,89 @@ public class RenderTests
         }
         finally { SelectPdfCompat.Configure = null; }
     }
-    static HtmlToPdfDocument TenPages()
+    static HtmlToPdfDocument Pages(int count)
     {
-        var html = string.Join("", Enumerable.Range(1, 10).Select(i => $"<h1 style=\"break-before:page\">Page {i}</h1>"));
+        var html = string.Join("", Enumerable.Range(1, count).Select(i =>
+            $"<h1 style=\"{(i < count ? "break-after:page" : "")}\">Page {i}</h1>"));
         return new HtmlToPdfDocument { Objects = { new ObjectSettings { HtmlContent = html } } };
     }
 
+#if SELECTPDF_LICENSED
+    static int PageCount(byte[] pdf)
+    {
+        var doc = new SelectPdf.Universal.PdfDocument(new MemoryStream(pdf));
+        try { return doc.Pages.Count; } finally { doc.Close(); }
+    }
+
     [Fact]
-    public void Page_limit_raises_a_warning_and_still_returns_the_pdf()
+    public void Licensed_package_has_no_page_limit()
     {
         var converter = new BasicConverter(new PdfTools());
         var warnings = new List<string>();
         converter.Warning += (s, e) => warnings.Add(e.Message);
-        byte[] pdf = converter.Convert(TenPages());
-        Assert.True(IsPdf(pdf));
-        Assert.Contains(warnings, w => w.Contains("5 pages"));
+        byte[] pdf = converter.Convert(Pages(10));
+        Assert.Equal(10, PageCount(pdf));
+        Assert.DoesNotContain(warnings, w => w.Contains("Community Edition"));
     }
 
     [Fact]
-    public void Page_limit_can_fail_the_conversion()
+    public void Licensed_package_appends_several_objects_with_a_url()
     {
-        SelectPdfCompat.FailOnPageLimit = true;
+        string page = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
+        File.WriteAllText(page, "<h1>From a file</h1>");
+        try
+        {
+            var doc = new HtmlToPdfDocument
+            {
+                Objects =
+                {
+                    new ObjectSettings { HtmlContent = "<h1>One</h1>" },
+                    new ObjectSettings { Page = page },
+                }
+            };
+            Assert.Equal(2, PageCount(new BasicConverter(new PdfTools()).Convert(doc)));
+        }
+        finally { File.Delete(page); }
+    }
+#else
+    [Fact]
+    public void A_document_over_the_page_limit_throws_by_default()
+    {
+        var converter = new BasicConverter(new PdfTools());
+        var errors = new List<string>();
+        converter.Error += (s, e) => errors.Add(e.Message);
+        var e = Assert.ThrowsAny<InvalidOperationException>(() => converter.Convert(Pages(10)));
+        Assert.Contains("10 pages", e.Message);
+        Assert.Contains(errors, m => m.Contains("10 pages"));
+    }
+
+    [Fact]
+    public void Page_limit_can_return_the_first_pages_with_a_warning()
+    {
+        SelectPdfCompat.FailOnPageLimit = false;
         try
         {
             var converter = new BasicConverter(new PdfTools());
-            var errors = new List<string>();
-            converter.Error += (s, e) => errors.Add(e.Message);
-            byte[] pdf = converter.Convert(TenPages());
-            Assert.Empty(pdf);
-            Assert.Contains(errors, e => e.Contains("5 pages"));
+            var warnings = new List<string>();
+            converter.Warning += (s, e) => warnings.Add(e.Message);
+            byte[] pdf = converter.Convert(Pages(10));
+            Assert.True(IsPdf(pdf));
+            Assert.Contains(warnings, w => w.Contains("10 pages") && w.Contains("first 5 pages"));
         }
-        finally { SelectPdfCompat.FailOnPageLimit = false; }
+        finally { SelectPdfCompat.FailOnPageLimit = true; }
     }
+
+    [Fact]
+    public void A_document_of_exactly_five_pages_is_not_cut()
+    {
+        var converter = new BasicConverter(new PdfTools());
+        var warnings = new List<string>();
+        converter.Warning += (s, e) => warnings.Add(e.Message);
+        byte[] pdf = converter.Convert(Pages(5));
+        Assert.True(IsPdf(pdf));
+        Assert.DoesNotContain(warnings, w => w.Contains("Community Edition"));
+    }
+#endif
 
     [Fact]
     public void Short_document_has_no_page_limit_warning()
@@ -155,7 +207,7 @@ public class RenderTests
         var warnings = new List<string>();
         converter.Warning += (s, e) => warnings.Add(e.Message);
         converter.Convert(ReadmeDocument());
-        Assert.DoesNotContain(warnings, w => w.Contains("5 pages"));
+        Assert.DoesNotContain(warnings, w => w.Contains("Community Edition"));
     }
 }
 

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <SelectPdfLicensed>true</SelectPdfLicensed>
+    <DefineConstants>$(DefineConstants);SELECTPDF_LICENSED</DefineConstants>
+    <RootNamespace>DinkToPdf</RootNamespace>
+    <AssemblyName>SelectPdf.Compat.DinkToPdf.Licensed</AssemblyName>
+    <PackageId>SelectPdf.Compat.DinkToPdf.Licensed</PackageId>
+    <Title>DinkToPdf API on SelectPdf.Universal, no page limit (Chromium, Linux/Docker/ARM64)</Title>
+    <Description>The DinkToPdf API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings) on the licensed SelectPdf.Universal library: Chromium rendering with no page limit, instead of wkhtmltopdf. The same code as the free SelectPdf.Compat.DinkToPdf package, for applications with a SelectPdf license. Windows, Linux x64/ARM64, macOS on Apple Silicon, Docker; no libwkhtmltox files. Not affiliated with DinkToPdf.</Description>
+    <PackageTags>dinktopdf;dinktopdf-alternative;wkhtmltopdf;wkhtmltopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;selectpdf;selectpdf-universal</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- the free package's sources, built against SelectPdf.Universal -->
+    <Compile Include="../SelectPdf.Compat.DinkToPdf/**/*.cs" Exclude="../SelectPdf.Compat.DinkToPdf/obj/**;../SelectPdf.Compat.DinkToPdf/bin/**" />
+  </ItemGroup>
+</Project>

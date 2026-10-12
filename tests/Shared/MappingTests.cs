@@ -76,7 +76,22 @@ public class MappingTests
         Assert.Equal(expectedHeight, p.Header.HeightPt, 2);
         // header space comes out of the 10mm margin, so content starts where wkhtmltopdf put it
         Assert.Equal((int)Math.Round(10 * MmPt - expectedHeight), p.MarginTop);
-        Assert.Equal(p.Header.HeightPt - (float)(2.812 * MmPt), p.Header.LineY + 2, 2);
+        // the 0.5pt line ends where the 2pt reserved for it ends, just above the spacing
+        Assert.Equal(p.Header.HeightPt - (float)(2.812 * MmPt), p.Header.LineY + 0.5f, 2);
+        Assert.Empty(p.Warnings);
+    }
+
+    [Theory]
+    [InlineData(null, null, 0.798, true)]   // smart shrinking (the default): CSS 100mm prints as 79.8mm
+    [InlineData(false, null, 1.0, false)]   // smart shrinking off: CSS sizes are kept
+    [InlineData(null, 1.25, 0.9975, true)]  // ZoomFactor scales on top
+    public void The_web_page_width_reproduces_wkhtmltopdf_scale(bool? smartShrinking, double? zoom, double scale, bool fitWide)
+    {
+        var o = new ObjectSettings { HtmlContent = "x", WebSettings = { EnableIntelligentShrinking = smartShrinking }, LoadSettings = { ZoomFactor = zoom } };
+        var p = ConversionPlan.Create(new GlobalSettings { PaperSize = PaperKind.A4 }, o);
+        double contentPx = (210 - 20) * MmPt * 96 / 72;          // A4 minus the default 10mm margins
+        Assert.Equal((int)Math.Round(contentPx / scale), p.WebPageWidth);
+        Assert.Equal(fitWide, p.FitWideContent);
         Assert.Empty(p.Warnings);
     }
 

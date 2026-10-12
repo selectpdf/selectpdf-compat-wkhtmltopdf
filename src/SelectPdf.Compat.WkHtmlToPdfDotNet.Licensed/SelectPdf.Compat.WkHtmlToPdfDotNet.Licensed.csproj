@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <SelectPdfLicensed>true</SelectPdfLicensed>
+    <DefineConstants>$(DefineConstants);SELECTPDF_LICENSED</DefineConstants>
+    <DefineConstants>$(DefineConstants);WKHTMLTOPDFDOTNET</DefineConstants>
+    <RootNamespace>WkHtmlToPdfDotNet</RootNamespace>
+    <AssemblyName>SelectPdf.Compat.WkHtmlToPdfDotNet.Licensed</AssemblyName>
+    <PackageId>SelectPdf.Compat.WkHtmlToPdfDotNet.Licensed</PackageId>
+    <Title>WkHtmlToPdfDotNet API on SelectPdf.Universal, no page limit (Chromium, Linux/Docker/ARM64)</Title>
+    <Description>The Haukcode.WkHtmlToPdfDotNet API (IConverter, SynchronizedConverter, HtmlToPdfDocument, GlobalSettings, ObjectSettings, CoverSettings) on the licensed SelectPdf.Universal library: Chromium rendering with no page limit, instead of wkhtmltopdf. The same code as the free SelectPdf.Compat.WkHtmlToPdfDotNet package, for applications with a SelectPdf license. Windows, Linux x64/ARM64, macOS on Apple Silicon, Docker; no wkhtmltox libraries or apt-get. Not affiliated with WkHtmlToPdf-DotNet.</Description>
+    <PackageTags>wkhtmltopdfdotnet;haukcode;wkhtmltopdf;wkhtmltopdf-alternative;dinktopdf-alternative;wkhtmltox;html-to-pdf;htmltopdf;pdf;chromium;linux;docker;arm64;selectpdf;selectpdf-universal</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- the free package's sources, built against SelectPdf.Universal -->
+    <Compile Include="../SelectPdf.Compat.WkHtmlToPdfDotNet/**/*.cs" Exclude="../SelectPdf.Compat.WkHtmlToPdfDotNet/obj/**;../SelectPdf.Compat.WkHtmlToPdfDotNet/bin/**" />
+  </ItemGroup>
+</Project>
