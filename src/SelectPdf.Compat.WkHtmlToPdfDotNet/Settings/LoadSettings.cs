@@ -59,7 +59,7 @@ namespace WkHtmlToPdfDotNet
         public bool? DebugJavascript { get; set; }
 
         /// <summary>
-        /// How should we handle obejcts that fail to load. Default = Abort
+        /// How should we handle objects that fail to load. Default = Abort
         /// </summary>
         [WkHtml("load.loadErrorHandling")]
         public ContentErrorHandling? LoadErrorHandling { get; set; }
