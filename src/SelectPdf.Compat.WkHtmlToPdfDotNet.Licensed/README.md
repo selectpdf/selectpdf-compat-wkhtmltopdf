@@ -34,7 +34,7 @@ Then add the SelectPdf engine package for the platform the application runs on: 
 </PropertyGroup>
 <ItemGroup>
   <PackageReference Include="SelectPdf.Universal.Native.$(SelectPdfRid)"
-                    Version="26.5.0" />
+                    Version="26.6.0" />
 </ItemGroup>
 ```
 
